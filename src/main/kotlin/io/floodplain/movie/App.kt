@@ -5,7 +5,10 @@ package io.floodplain.movie
 
 import io.quarkus.runtime.Startup
 import io.smallrye.mutiny.coroutines.awaitSuspending
-import kotlinx.coroutines.*
+import io.vertx.mutiny.pgclient.PgPool
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.PostConstruct
 import javax.inject.Inject
@@ -15,17 +18,15 @@ import javax.inject.Singleton
 open class App {
 
 	@Inject
-	lateinit var client: io.vertx.mutiny.pgclient.PgPool
-	val totalAdded = AtomicLong(0)
+	lateinit var client: PgPool
+	private val totalAdded = AtomicLong(0)
 
 	@PostConstruct
 	fun initialize() {
-		runBlocking {
-			launch {
-				while (true) {
-					insertRandomPayment()
-					delay(1000)
-				}
+		GlobalScope.launch {
+			while (true) {
+				insertRandomPayment()
+				delay(1000)
 			}
 		}
 	}
