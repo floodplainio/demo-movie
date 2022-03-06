@@ -4,106 +4,56 @@
 package io.floodplain.movie
 
 import io.quarkus.runtime.Startup
-import io.vertx.core.AsyncResult
-import io.vertx.sqlclient.PoolOptions
-import io.vertx.pgclient.PgPool
-import io.vertx.sqlclient.Row
-import io.vertx.core.Vertx
+import io.smallrye.mutiny.coroutines.awaitSuspending
 import kotlinx.coroutines.*
-import io.vertx.sqlclient.RowSet
-import io.vertx.sqlclient.Tuple
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.PostConstruct
+import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.resume
-
-import kotlin.coroutines.suspendCoroutine
 
 @Singleton @Startup
 open class App {
-	private val connectionString: String = "postgresql://postgres:mysecretpassword@postgres:5432/dvdrental"
-	// private lateinit var
-	private val vertx: Vertx = Vertx.vertx()
-	private lateinit var client: PgPool
 
+	@Inject
+	lateinit var client: io.vertx.mutiny.pgclient.PgPool
 	val totalAdded = AtomicLong(0)
 
 	@PostConstruct
 	fun initialize() {
-		GlobalScope.launch { // launch a new coroutine in background and continue
-			client = createPostgresClient(vertx)
-			while(true)
-			repeat(Integer.MAX_VALUE) { _->
-				insertRandomPayment()
-				delay(2500)
+		runBlocking {
+			launch {
+				while (true) {
+					insertRandomPayment()
+					delay(1000)
+				}
 			}
 		}
-		Thread.sleep(5000L)
 	}
 
-
-	private fun createPostgresClient(vertx: Vertx): PgPool {
-		return PgPool.pool(vertx, connectionString, PoolOptions().setMaxSize(5))
-	}
-	
-	fun listCountries() {
-		client.query("SELECT * FROM country").execute { ar ->
-			if (ar.succeeded()) {
-				val result = ar.result()
-				result.forEach { rw->println(rw.getString(1)) }
-				println("Got ${result.size()} rows ")
-			} else {
-				println("Failure: ${ar.cause()}")
-			}
-			client.close()
-		}
-	}
-
-	suspend fun insertRandomPayment() {
+	private suspend fun insertRandomPayment() {
 		totalAdded.incrementAndGet()
 		val amount = Math.random()*100
 		val customer = randomCustomer()
 		val staff = randomStaff()
 		val rental = randomRental()
-		println("customer: $customer staff: $staff rental $rental")
-		insertPayment(customer, staff, rental, amount).onFailure { e -> e.printStackTrace() }
+		val insertedId = insertPayment(customer, staff, rental, amount)
+		println("Inserted id: $insertedId customer: $customer staff: $staff rental $rental")
 	}
 
-	private fun queryAsync(query: String, params: Tuple?, onResult: (Result<RowSet<Row>>)->Unit){
-		val handler = { ar: AsyncResult<RowSet<Row>> ->
-			if(ar.succeeded()) {
-				onResult.invoke(Result.success(ar.result()))
-			} else {
-				onResult.invoke(Result.failure(ar.cause()))
-			}
-		}
-		if (params!=null) {
-			client.preparedQuery(query).execute(params,handler)
-		} else {
-			client.preparedQuery(query).execute(params,handler)
-		}
-		}
-
 	private suspend fun randomCustomer(): Short {
-		return queryCoroutine("SELECT * from customer order by random() limit 1", Tuple.tuple()).getOrThrow().first().getShort("customer_id")
+		return client.query("SELECT * from customer order by random() limit 1").execute().awaitSuspending().first().getShort("customer_id")
 	}
 
 	private suspend fun randomStaff(): Short {
-		return queryCoroutine("SELECT * from staff order by random() limit 1", Tuple.tuple()).getOrThrow().first().getShort("staff_id")
+		return client.query("SELECT * from staff order by random() limit 1").execute().awaitSuspending().first().getShort("staff_id")
 	}
 
 	private suspend fun randomRental(): Int {
-		return queryCoroutine("SELECT * from rental order by random() limit 1", Tuple.tuple()).getOrThrow().first().getInteger("rental_id")
+		return client.query("SELECT * from rental order by random() limit 1").execute().awaitSuspending().first().getInteger("rental_id")
 	}
-	private suspend fun insertPayment(customerId: Short, staffId: Short, rentalId: Int, amount: Double): Result<RowSet<Row>> {
-		val t = Tuple.of(customerId,staffId,rentalId,amount)
-		return queryCoroutine("INSERT INTO payment (customer_id,staff_id,rental_id,amount,payment_date) VALUES ($1,$2,$3,$4,current_timestamp) RETURNING payment_id",t)
-	}
-
-	private suspend fun queryCoroutine(query: String, params: Tuple?): Result<RowSet<Row>> = suspendCoroutine { cont ->
-		queryAsync(query,params) { result ->
-			cont.resume(result)
-		}
+	private suspend fun insertPayment(customerId: Short, staffId: Short, rentalId: Int, amount: Double): Int {
+		val payment = io.vertx.mutiny.sqlclient.Tuple.of(customerId,staffId,rentalId,amount)
+		return client.preparedQuery("INSERT INTO payment (customer_id,staff_id,rental_id,amount,payment_date) VALUES ($1,$2,$3,$4,current_timestamp) RETURNING payment_id").execute(payment).awaitSuspending().first().getInteger("payment_id")
 	}
 }
 

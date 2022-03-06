@@ -7,10 +7,11 @@ services:
     environment:
       POSTGRES_PASSWORD: mysecretpassword
   cdcservice:
-    image: floodplain/cdcservice:0.0.1
-    build:
-      context: .
-      dockerfile: src/main/docker/Dockerfile.jvm
+    image: floodplain/demo-movie:latest
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_REACTIVE_URL: postgresql://postgres:5432/dvdrental
     depends_on:
       - "postgres"
     ports:

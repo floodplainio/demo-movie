@@ -16,6 +16,7 @@ val quarkusPlatformVersion: String by project
 dependencies {
     implementation("io.quarkus:quarkus-resteasy-mutiny")
     implementation("io.quarkus:quarkus-reactive-pg-client")
+    implementation("io.smallrye.reactive:mutiny-kotlin:1.3.1")
     implementation("io.quarkus:quarkus-vertx")
     implementation(enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}"))
     implementation("io.quarkus:quarkus-resteasy-jackson")
