@@ -26,9 +26,12 @@ open class App {
 	fun initialize() {
 		GlobalScope.launch {
 			while (true) {
-
-				insertRandomPayment()
-				delay(1000)
+				try {
+					insertRandomPayment()
+					delay(1000)
+				} catch (e: Exception) {
+					e.printStackTrace()
+				}
 			}
 		}
 	}
