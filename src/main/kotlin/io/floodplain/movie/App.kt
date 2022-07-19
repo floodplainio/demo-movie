@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.PostConstruct
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.random.Random
 
 @Singleton @Startup
 open class App {
@@ -25,6 +26,7 @@ open class App {
 	fun initialize() {
 		GlobalScope.launch {
 			while (true) {
+
 				insertRandomPayment()
 				delay(1000)
 			}
@@ -41,8 +43,8 @@ open class App {
 		println("Inserted id: $insertedId customer: $customer staff: $staff rental $rental")
 	}
 
-	private suspend fun randomCustomer(): Short {
-		return client.query("SELECT * from customer order by random() limit 1").execute().awaitSuspending().first().getShort("customer_id")
+	private fun randomCustomer(): Short {
+		return Random.nextInt(1, 600).toShort()
 	}
 
 	private suspend fun randomStaff(): Short {
