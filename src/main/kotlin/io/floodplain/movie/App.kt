@@ -6,6 +6,7 @@ package io.floodplain.movie
 import io.quarkus.runtime.Startup
 import io.smallrye.mutiny.coroutines.awaitSuspending
 import io.vertx.mutiny.pgclient.PgPool
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -22,16 +23,17 @@ open class App {
 	lateinit var client: PgPool
 	private val totalAdded = AtomicLong(0)
 
+	@OptIn(DelicateCoroutinesApi::class)
 	@PostConstruct
 	fun initialize() {
 		GlobalScope.launch {
 			while (true) {
 				try {
 					insertRandomPayment()
-					delay(1000)
 				} catch (e: Exception) {
 					e.printStackTrace()
 				}
+				delay(1000)
 			}
 		}
 	}
